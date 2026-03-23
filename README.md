@@ -4,9 +4,14 @@
 
 Aggregate traded volume per user using events from Aeron and Kafka. Maintain off-heap aggregates and emit periodic volume snapshots to Aeron and Kafka.
 
+### NFRs
+
+- Low latency (P99 < 10ms)
+- High throughput (Avg: 25K RPS, Max: 100K RPS)
+
 ## Prerequisites
 
-- Java 17+
+- Java 17+ (Tested with Java 25)
 - Maven 3.8+
 - A running Kafka broker (default: `localhost:9092`)
 - Aeron MediaDriver is started embedded; no external process required
@@ -29,19 +34,19 @@ java -jar target/trade-volume-aggregator-1.0.0-SNAPSHOT.jar
 
 Settings are loaded from `src/main/resources/application.properties` and can be overridden via environment variables (replace dots with underscores, uppercase).
 
-| Property | Default | Description |
-|---|---|---|
-| `kafka.bootstrap.servers` | `localhost:9092` | Kafka broker addresses |
-| `kafka.consumer.topic` | `trade-events` | Topic for incoming trade events |
-| `kafka.producer.topic` | `volume-snapshots` | Topic for outgoing snapshots |
-| `kafka.group.id` | `volume-aggregator-group` | Kafka consumer group ID |
-| `aeron.subscriber.channel` | `aeron:udp?endpoint=localhost:40123` | Aeron channel for incoming trades |
-| `aeron.subscriber.stream.id` | `1001` | Aeron stream ID for incoming trades |
-| `aeron.publisher.channel` | `aeron:udp?endpoint=localhost:40124` | Aeron channel for outgoing snapshots |
-| `aeron.publisher.stream.id` | `1002` | Aeron stream ID for outgoing snapshots |
-| `snapshot.interval.ms` | `1000` | Snapshot emission interval (ms) |
-| `chronicle.map.entries` | `1000000` | Max entries in off-heap map |
-| `chronicle.map.file` | `/tmp/volume-aggregator.dat` | Chronicle Map persistence file |
+| Property                     | Default                              | Description                            |
+| ---------------------------- | ------------------------------------ | -------------------------------------- |
+| `kafka.bootstrap.servers`    | `localhost:9092`                     | Kafka broker addresses                 |
+| `kafka.consumer.topic`       | `trade-events`                       | Topic for incoming trade events        |
+| `kafka.producer.topic`       | `volume-snapshots`                   | Topic for outgoing snapshots           |
+| `kafka.group.id`             | `volume-aggregator-group`            | Kafka consumer group ID                |
+| `aeron.subscriber.channel`   | `aeron:udp?endpoint=localhost:40123` | Aeron channel for incoming trades      |
+| `aeron.subscriber.stream.id` | `1001`                               | Aeron stream ID for incoming trades    |
+| `aeron.publisher.channel`    | `aeron:udp?endpoint=localhost:40124` | Aeron channel for outgoing snapshots   |
+| `aeron.publisher.stream.id`  | `1002`                               | Aeron stream ID for outgoing snapshots |
+| `snapshot.interval.ms`       | `1000`                               | Snapshot emission interval (ms)        |
+| `chronicle.map.entries`      | `1000000`                            | Max entries in off-heap map            |
+| `chronicle.map.file`         | `/tmp/volume-aggregator.dat`         | Chronicle Map persistence file         |
 
 ## Project Structure
 
@@ -85,22 +90,22 @@ Kafka Consumer  ───┘              │
 
 **Trade event (inbound):**
 
-| Offset | Field | Type |
-|--------|-------|------|
-| 0 | userId | long (8B) |
-| 8 | volume | double (8B) |
-| 16 | timestampMs | long (8B) |
-| 24 | symbolLen | int (4B) |
-| 28 | symbol | UTF-8 (symbolLen B) |
+| Offset | Field       | Type                |
+| ------ | ----------- | ------------------- |
+| 0      | userId      | long (8B)           |
+| 8      | volume      | double (8B)         |
+| 16     | timestampMs | long (8B)           |
+| 24     | symbolLen   | int (4B)            |
+| 28     | symbol      | UTF-8 (symbolLen B) |
 
 **Volume snapshot (outbound):**
 
-| Offset | Field | Type |
-|--------|-------|------|
-| 0 | userId | long (8B) |
-| 8 | totalVolume | double (8B) |
-| 16 | lastUpdatedMs | long (8B) |
-| 24 | snapshotTimestampMs | long (8B) |
+| Offset | Field               | Type        |
+| ------ | ------------------- | ----------- |
+| 0      | userId              | long (8B)   |
+| 8      | totalVolume         | double (8B) |
+| 16     | lastUpdatedMs       | long (8B)   |
+| 24     | snapshotTimestampMs | long (8B)   |
 
 ### Kafka Message Formats
 

@@ -30,10 +30,25 @@ public final class KafkaTradeConsumer implements Runnable, Closeable {
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     public KafkaTradeConsumer(AppConfig config, VolumeAggregator aggregator) {
-        this.aggregator = aggregator;
-        this.objectMapper = new ObjectMapper();
-        this.topic = config.kafkaConsumerTopic();
+        this(newConsumer(config), aggregator, config.kafkaConsumerTopic(), new ObjectMapper());
+    }
 
+    /**
+     * For tests: inject a mock or test {@link KafkaConsumer}.
+     */
+    public KafkaTradeConsumer(
+            KafkaConsumer<String, String> consumer,
+            VolumeAggregator aggregator,
+            String topic,
+            ObjectMapper objectMapper) {
+        this.consumer = consumer;
+        this.aggregator = aggregator;
+        this.topic = topic;
+        this.objectMapper = objectMapper;
+        LOG.info("Kafka consumer created for topic '{}'", topic);
+    }
+
+    private static KafkaConsumer<String, String> newConsumer(AppConfig config) {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaBootstrapServers());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, config.kafkaGroupId());
@@ -42,8 +57,8 @@ public final class KafkaTradeConsumer implements Runnable, Closeable {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
 
-        this.consumer = new KafkaConsumer<>(props);
-        LOG.info("Kafka consumer created for topic '{}' at {}", topic, config.kafkaBootstrapServers());
+        LOG.info("Kafka consumer connecting to {}", config.kafkaBootstrapServers());
+        return new KafkaConsumer<>(props);
     }
 
     @Override

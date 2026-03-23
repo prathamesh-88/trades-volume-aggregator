@@ -24,9 +24,23 @@ public final class KafkaSnapshotPublisher implements Closeable {
     private final String topic;
 
     public KafkaSnapshotPublisher(AppConfig config) {
-        this.objectMapper = new ObjectMapper();
-        this.topic = config.kafkaProducerTopic();
+        this(newProducer(config), config.kafkaProducerTopic(), new ObjectMapper());
+    }
 
+    /**
+     * For tests: inject a mock or test {@link KafkaProducer}.
+     */
+    public KafkaSnapshotPublisher(
+            KafkaProducer<String, String> producer,
+            String topic,
+            ObjectMapper objectMapper) {
+        this.producer = producer;
+        this.topic = topic;
+        this.objectMapper = objectMapper;
+        LOG.info("Kafka snapshot publisher created for topic '{}'", topic);
+    }
+
+    private static KafkaProducer<String, String> newProducer(AppConfig config) {
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaBootstrapServers());
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
@@ -34,9 +48,7 @@ public final class KafkaSnapshotPublisher implements Closeable {
         props.put(ProducerConfig.ACKS_CONFIG, "1");
         props.put(ProducerConfig.LINGER_MS_CONFIG, "5");
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, "16384");
-
-        this.producer = new KafkaProducer<>(props);
-        LOG.info("Kafka snapshot publisher created for topic '{}'", topic);
+        return new KafkaProducer<>(props);
     }
 
     public void publish(Collection<VolumeSnapshot> snapshots) {

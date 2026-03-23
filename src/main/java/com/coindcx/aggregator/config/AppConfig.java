@@ -15,8 +15,35 @@ public final class AppConfig {
     private final Properties properties;
 
     public AppConfig() {
+        this(null, null);
+    }
+
+    /**
+     * Merges {@code overrides} on top of classpath {@code application.properties} (if present).
+     * Intended for tests and programmatic configuration.
+     */
+    public AppConfig(Properties overrides) {
+        this(overrides, null);
+    }
+
+    /**
+     * Same as {@link #AppConfig(Properties)} but loads {@code application.properties} via {@code propertiesClassLoader}
+     * (e.g. a test class loader that omits the file or simulates I/O errors).
+     */
+    public AppConfig(Properties overrides, ClassLoader propertiesClassLoader) {
         this.properties = new Properties();
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream(PROPERTIES_FILE)) {
+        ClassLoader cl =
+                propertiesClassLoader != null ? propertiesClassLoader : getClass().getClassLoader();
+        loadClasspathProperties(cl);
+        if (overrides != null) {
+            for (String name : overrides.stringPropertyNames()) {
+                properties.setProperty(name, overrides.getProperty(name));
+            }
+        }
+    }
+
+    private void loadClasspathProperties(ClassLoader classLoader) {
+        try (InputStream in = classLoader.getResourceAsStream(PROPERTIES_FILE)) {
             if (in != null) {
                 properties.load(in);
                 LOG.info("Loaded configuration from {}", PROPERTIES_FILE);

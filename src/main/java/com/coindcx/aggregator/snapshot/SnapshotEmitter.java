@@ -28,15 +28,32 @@ public final class SnapshotEmitter implements Closeable {
                            VolumeAggregator aggregator,
                            KafkaSnapshotPublisher kafkaPublisher,
                            AeronSnapshotPublisher aeronPublisher) {
+        this(
+                aggregator,
+                kafkaPublisher,
+                aeronPublisher,
+                Executors.newSingleThreadScheduledExecutor(r -> {
+                    Thread t = new Thread(r, "snapshot-emitter");
+                    t.setDaemon(true);
+                    return t;
+                }),
+                config.snapshotIntervalMs());
+    }
+
+    /**
+     * For tests: inject a {@link ScheduledExecutorService} (e.g. mock) and interval.
+     */
+    SnapshotEmitter(
+            VolumeAggregator aggregator,
+            KafkaSnapshotPublisher kafkaPublisher,
+            AeronSnapshotPublisher aeronPublisher,
+            ScheduledExecutorService scheduler,
+            long intervalMs) {
         this.aggregator = aggregator;
         this.kafkaPublisher = kafkaPublisher;
         this.aeronPublisher = aeronPublisher;
-        this.intervalMs = config.snapshotIntervalMs();
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "snapshot-emitter");
-            t.setDaemon(true);
-            return t;
-        });
+        this.scheduler = scheduler;
+        this.intervalMs = intervalMs;
     }
 
     public void start() {
@@ -44,7 +61,7 @@ public final class SnapshotEmitter implements Closeable {
         LOG.info("Snapshot emitter started with interval {}ms", intervalMs);
     }
 
-    private void emitSnapshots() {
+    void emitSnapshots() {
         try {
             long startNs = System.nanoTime();
 

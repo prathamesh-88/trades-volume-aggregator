@@ -39,12 +39,19 @@ public final class AeronSnapshotPublisher implements Closeable {
     private final UnsafeBuffer buffer;
 
     public AeronSnapshotPublisher(Aeron aeron, AppConfig config) {
-        String channel = config.aeronPublisherChannel();
-        int streamId = config.aeronPublisherStreamId();
-        this.publication = aeron.addPublication(channel, streamId);
-        this.buffer = new UnsafeBuffer(BufferUtil.allocateDirectAligned(MESSAGE_LENGTH, 64));
+        this(aeron.addPublication(config.aeronPublisherChannel(), config.aeronPublisherStreamId()));
+        LOG.info(
+                "Aeron snapshot publisher created on channel={} streamId={}",
+                config.aeronPublisherChannel(),
+                config.aeronPublisherStreamId());
+    }
 
-        LOG.info("Aeron snapshot publisher created on channel={} streamId={}", channel, streamId);
+    /**
+     * For tests: inject a mock {@link Publication}.
+     */
+    AeronSnapshotPublisher(Publication publication) {
+        this.publication = publication;
+        this.buffer = new UnsafeBuffer(BufferUtil.allocateDirectAligned(MESSAGE_LENGTH, 64));
     }
 
     public void publish(Collection<VolumeSnapshot> snapshots) {

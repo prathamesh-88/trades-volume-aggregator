@@ -38,23 +38,29 @@ public final class AeronTradeSubscriber implements Runnable, Closeable {
     private static final int SYMBOL_LEN_OFFSET = 24;
     private static final int SYMBOL_DATA_OFFSET = 28;
 
-    private final Aeron aeron;
     private final Subscription subscription;
     private final VolumeAggregator aggregator;
     private final IdleStrategy idleStrategy;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     public AeronTradeSubscriber(Aeron aeron, AppConfig config, VolumeAggregator aggregator) {
-        this.aeron = aeron;
+        this(
+                aeron.addSubscription(config.aeronSubscriberChannel(), config.aeronSubscriberStreamId()),
+                aggregator,
+                new BackoffIdleStrategy(100, 10, 1_000, 1_000_000));
+        LOG.info(
+                "Aeron subscriber created on channel={} streamId={}",
+                config.aeronSubscriberChannel(),
+                config.aeronSubscriberStreamId());
+    }
+
+    /**
+     * For tests: inject a mock {@link Subscription} and {@link IdleStrategy}.
+     */
+    AeronTradeSubscriber(Subscription subscription, VolumeAggregator aggregator, IdleStrategy idleStrategy) {
+        this.subscription = subscription;
         this.aggregator = aggregator;
-        this.idleStrategy = new BackoffIdleStrategy(
-                100, 10, 1_000, 1_000_000);
-
-        String channel = config.aeronSubscriberChannel();
-        int streamId = config.aeronSubscriberStreamId();
-        this.subscription = aeron.addSubscription(channel, streamId);
-
-        LOG.info("Aeron subscriber created on channel={} streamId={}", channel, streamId);
+        this.idleStrategy = idleStrategy;
     }
 
     @Override
@@ -71,7 +77,7 @@ public final class AeronTradeSubscriber implements Runnable, Closeable {
         LOG.info("Aeron subscriber closed");
     }
 
-    private void onFragment(DirectBuffer buffer, int offset, int length, Header header) {
+    void onFragment(DirectBuffer buffer, int offset, int length, Header header) {
         try {
             long userId = buffer.getLong(offset + USER_ID_OFFSET);
             double volume = buffer.getDouble(offset + VOLUME_OFFSET);
